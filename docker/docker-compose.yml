@@ -1,0 +1,68 @@
+services:
+server:
+image: ghcr.io/final-project-devops/back-end:master
+entrypoint: ["/bin/sh", "-c", "export DATABASE_URL=$$(cat /run/secrets/db_url) &&
+./entrypoint.sh"]
+ports:
+- 8080:80
+networks:
+- internal-net
+secrets:
+- db_url
+deploy:
+replicas: 3
+depends_on:
+- db
+db:
+image: postgres:latest
+volumes:
+- pgdata:/var/lib/postgresql/data
+ports:
+- 5432:5432
+environment:
+POSTGRES_USER_FILE: /run/secrets/postgres_user
+POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+networks:
+- internal-net
+secrets:
+- postgres_user
+- postgres_password
+prometheus:
+image: prom/prometheus:latest
+configs:
+- source: prometheus_config
+target: /etc/prometheus/prometheus.yml
+ports:
+- 9090:9090
+networks:
+- internal-net
+grafana:
+image: grafana/grafana:latest
+ports:
+- 3000:3000
+volumes:
+- grafana_data:/var/lib/grafana
+networks:
+- internal-net
+node-exporter:
+image: prom/node-exporter:latest
+deploy:
+mode: global
+networks:
+- internal-net
+configs:
+prometheus_config:
+file: ./prometheus.yml
+secrets:
+postgres_user:
+external: true
+postgres_password:
+external: true
+db_url:
+external: true
+networks:
+internal-net:
+driver: overlay
+volumes:
+pgdata:
+grafana_data:
